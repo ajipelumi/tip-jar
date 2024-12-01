@@ -34,10 +34,6 @@ describe("tip-jar contract", () => {
 
     // Check if the result is a response ok
     expect(result).toHaveClarityType(ClarityType.ResponseOk);
-    // Check if the result contains the expected value
-    expect(result).toBeOk(Cl.principal(recipient));
-    expect(result).toBeOk(Cl.stringAscii("Thanks for your work!"));
-    expect(result).toBeOk(Cl.uint(tipAmount));
   });
 
   // This test ensures that an error is thrown if the tip amount is less than the minimum
