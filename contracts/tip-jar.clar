@@ -4,20 +4,47 @@
 ;; Constants
 (define-constant ERR-MINIMUM-TIP-AMOUNT (err u100))
 (define-constant ERR-NOT-AUTHORIZED (err u101))
+(define-constant ERR-CANNOT-TIP-SELF (err u102))
+(define-constant ERR-EMPTY-MESSAGE (err u103))
 
 ;; Data variables
 (define-data-var min-tip uint u10)
 (define-data-var owner principal tx-sender)
 
+;; Data variable for storing tip history
+(define-map tip-history 
+  { tx-id: uint }
+  { sender: principal, recipient: principal, amount: uint, message: (string-ascii 100), timestamp: uint })
+
+;; Variable to keep track of tip count
+(define-data-var tip-counter uint u0)
+
 ;; Function to send a tip to a person
 (define-public (send-tip (recipient principal) (message (string-ascii 100)) (amount uint))
   (begin
-    ;; Get the current minimum tip amount
-    (let ((current-min-tip (var-get min-tip)))
+    ;; Validate recipient is not the sender
+    (asserts! (not (is-eq recipient tx-sender)) ERR-CANNOT-TIP-SELF)
+
+    ;; Validate message is not empty
+    (asserts! (> (len message) u0) (err u103))
+    
+    ;; Get the current minimum tip amount and the current tip counter
+    (let ((current-min-tip (var-get min-tip))
+          (current-counter (var-get tip-counter)))
       ;; Check if the amount is greater than or equal to the minimum tip amount
       (asserts! (>= amount current-min-tip) ERR-MINIMUM-TIP-AMOUNT)
       ;; Transfer the amount from the sender to the recipient
       (try! (stx-transfer? amount tx-sender recipient))
+      ;; Store tip history
+      (map-set tip-history 
+        { tx-id: current-counter }
+        { sender: tx-sender, 
+          recipient: recipient,
+          amount: amount, 
+          message: message,
+          timestamp: burn-block-height })
+      ;; Increment the tip counter
+      (var-set tip-counter (+ current-counter u1))
       ;; The function returns a success message if the tip is sent successfully
       (ok { recipient: recipient, message: message, amount: amount }))))
 
@@ -25,6 +52,10 @@
 (define-read-only (get-min-tip)
   (var-get min-tip)
 )
+
+;; Function to get tip history by transaction ID
+(define-read-only (get-tip-by-id (tx-id uint))
+  (map-get? tip-history { tx-id: tx-id }))
 
 ;; Function to update the minimum tip amount (only callable by the owner)
 (define-public (set-min-tip (new-min-tip uint))
