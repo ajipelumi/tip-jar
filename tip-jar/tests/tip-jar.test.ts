@@ -6,6 +6,7 @@ import { Cl, ClarityType } from "@stacks/transactions";
 describe("tip-jar contract", () => {
   // Define the sender and recipient accounts
   const accounts = simnet.getAccounts();
+  const owner = accounts.get("deployer")!;
   const sender = accounts.get("wallet_1")!;
   const recipient = accounts.get("wallet_2")!;
 
@@ -13,6 +14,49 @@ describe("tip-jar contract", () => {
   it("ensures the contract is deployed", () => {
     const contractSource = simnet.getContractSource("tip-jar");
     expect(contractSource).toBeDefined();
+  });
+
+  // This test ensures that the owner can update the minimum tip amount
+  it("allows the owner to update the minimum tip amount", () => {
+    const newMinTip = 20;
+    const { result } = simnet.callPublicFn(
+      "tip-jar",
+      "set-min-tip",
+      [Cl.uint(newMinTip)],
+      owner
+    );
+    expect(result).toHaveClarityType(ClarityType.ResponseOk);
+  });
+
+  // This test ensures that the only the owner can update the minimum tip amount
+  it("fails if a non-owner tries to update the minimum tip amount", () => {
+    const newMinTip = 50;
+    const { result } = simnet.callPublicFn(
+      "tip-jar",
+      "set-min-tip",
+      [Cl.uint(newMinTip)],
+      sender
+    );
+    expect(result).toBeErr(Cl.uint(101));
+  });
+
+  // This test ensures that the minimum tip amount updates correctly
+  it("ensures the minimum tip amount updates correctly", () => {
+    // Set the new minimum tip amount to 20 microSTX before calling the get-min-tip function
+    simnet.callPublicFn(
+      "tip-jar",
+      "set-min-tip",
+      [Cl.uint(20)],
+      owner
+    );
+
+    const { result } = simnet.callReadOnlyFn(
+      "tip-jar",
+      "get-min-tip",
+      [],
+      owner
+    );
+    expect(result).toEqual(Cl.uint(20));
   });
 
   // This test ensures that a user can send a tip
