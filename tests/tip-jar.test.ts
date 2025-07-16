@@ -464,4 +464,27 @@ describe("tip-jar contract", () => {
       expect(statsList.length).toEqual(7);
     });
   });
+
+  // Handle edge case for message lengths
+  describe("edge case for message lengths", () => {
+    it("allows a message of exactly 100 characters", () => {
+      const tipAmount = 100;
+      const message = "a".repeat(100);
+      const category = "content";
+
+      // Attempt to send a tip with a message of exactly 100 characters
+      const { result } = simnet.callPublicFn(
+        "tip-jar",
+        "send-tip",
+        [
+          Cl.principal(recipient),
+          Cl.stringAscii(message),
+          Cl.uint(tipAmount),
+          Cl.stringAscii(category),
+        ],
+        sender
+      );
+      expect(result).toHaveClarityType(ClarityType.ResponseOk);
+    });
+  });
 });
